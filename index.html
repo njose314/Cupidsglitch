@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cupid's Glitch // Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #050505;
+            color: #fff;
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
+            touch-action: none; /* Prevent browser scrolling */
+        }
+
+        /* CRT Scanline Effect */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        /* Subtle Glow */
+        .screen-glow {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, rgba(255,20,147,0.05) 0%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+            z-index: 40;
+        }
+
+        /* UI Elements */
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 20, 147, 0.3);
+            box-shadow: 0 0 20px rgba(255, 20, 147, 0.1);
+        }
+
+        .neon-text {
+            text-shadow: 0 0 5px #ff1493, 0 0 10px #ff1493, 0 0 20px #ff1493;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="h-dvh w-screen flex flex-col items-center justify-center relative">
+
+    <div class="scanlines"></div>
+    <div class="screen-glow"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
+        <div class="text-pink-500 text-xs">SCORE: <span id="scoreDisplay" class="text-white">0</span></div>
+        <div class="text-pink-500 text-xs">HP: <span id="hpDisplay" class="text-white">♥♥♥</span></div>
+    </div>
+
+    <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/90 p-6 text-center">
+        <h1 class="text-3xl text-pink-500 mb-4 neon-text leading-tight">CUPID'S<br>GLITCH</h1>
+        <p class="text-[10px] text-gray-400 mb-8 max-w-xs leading-relaxed">
+            SYSTEM CORRUPTED.<br>BAD VIBES DETECTED.<br><br>
+            DRAG TO MOVE & SHOOT.
+        </p>
+        <button id="startBtn" class="glass-panel px-8 py-4 text-pink-400 text-sm uppercase hover:bg-pink-900/30 transition-all active:scale-95">
+            INITIATE_LOVE_PROTOCOL
+        </button>
+    </div>
+
+    <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-6 text-center">
+        <h2 class="text-2xl text-red-500 mb-2 neon-text">SYSTEM FAILURE</h2>
+        <p class="text-xs text-gray-300 mb-6">BAD VIBES TOOK OVER</p>
+        
+        <div class="glass-panel p-4 mb-8 w-full max-w-xs">
+            <p class="text-[10px] text-pink-500 mb-1">FINAL SCORE</p>
+            <p id="finalScore" class="text-2xl text-white">0</p>
+        </div>
+
+        <button id="restartBtn" class="glass-panel px-8 py-4 text-pink-400 text-sm uppercase active:scale-95">
+            REBOOT SYSTEM
+        </button>
+    </div>
+
+    <script>
+        /**
+         * CUPID'S GLITCH
+         * Mobile-First Arcade Shooter
+         * Architect: Dark/Neon/Haptic
+         */
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Screens
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const hud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const hpDisplay = document.getElementById('hpDisplay');
+        const finalScoreDisplay = document.getElementById('finalScore');
+
+        // Buttons
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // Game State
+        let isPlaying = false;
+        let score = 0;
+        let frameCount = 0;
+        let lastTime = 0;
+        let touchActive = false;
+
+        // Assets (Procedural Drawing to keep single file)
+        const COLORS = {
+            bg: '#050505',
+            player: '#ff1493', // Deep Pink
+            playerGlow: 'rgba(255, 20, 147, 0.5)',
+            bullet: '#00ffff', // Cyan
+            enemy: '#ff0000', // Red
+            text: '#ffffff'
+        };
+
+        // Entities
+        let player = { x: 0, y: 0, w: 30, h: 30, hp: 3 };
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let stars = [];
+
+        // Resize Handling
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // Reset player position to bottom center
+            if (!isPlaying) {
+                player.x = canvas.width / 2;
+                player.y = canvas.height - 100;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- INPUT HANDLING ---
+        function handleInput(e) {
+            if (!isPlaying) return;
+            e.preventDefault();
+            
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = canvas.getBoundingClientRect();
+            
+            // Simple drag tracking: Player x follows finger x
+            // Player y follows finger y but clamped to bottom half for usability
+            let targetX = touch.clientX - rect.left;
+            let targetY = touch.clientY - rect.top;
+
+            // Smooth lerp for movement
+            player.x += (targetX - player.x) * 0.2;
+            player.y += (targetY - player.y) * 0.2;
+            
+            // Clamp to screen
+            player.x = Math.max(player.w/2, Math.min(canvas.width - player.w/2, player.x));
+            player.y = Math.max(canvas.height/2, Math.min(canvas.height - player.h/2, player.y));
+
+            touchActive = true;
+        }
+
+        function stopInput() {
+            touchActive = false;
+        }
+
+        canvas.addEventListener('touchstart', handleInput, {passive: false});
+        canvas.addEventListener('touchmove', handleInput, {passive: false});
+        canvas.addEventListener('touchend', stopInput);
+        canvas.addEventListener('mousedown', () => { touchActive = true; });
+        canvas.addEventListener('mousemove', (e) => { if(touchActive) handleInput(e); });
+        canvas.addEventListener('mouseup', stopInput);
+
+        // --- GAME LOGIC ---
+
+        function spawnEnemy() {
+            const size = 25 + Math.random() * 15;
+            enemies.push({
+                x: Math.random() * (canvas.width - size),
+                y: -50,
+                w: size,
+                h: size,
+                speed: 2 + Math.random() * 2 + (score / 500), // Gets faster
+                type: Math.random() > 0.8 ? 'tank' : 'drone', // Simple logic
+                hp: Math.random() > 0.8 ? 3 : 1
+            });
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 1.0,
+                    color: color
+                });
+            }
+        }
+
+        function update(dt) {
+            if (!isPlaying) return;
+
+            // Auto Fire if touching screen (or holding mouse)
+            if (touchActive && frameCount % 8 === 0) {
+                bullets.push({
+                    x: player.x,
+                    y: player.y - 20,
+                    w: 4,
+                    h: 12,
+                    speed: 10
+                });
+                // Micro haptic
+                if (navigator.vibrate) navigator.vibrate(5);
+            }
+
+            // Update Bullets
+            bullets.forEach((b, i) => {
+                b.y -= b.speed;
+                if (b.y < -10) bullets.splice(i, 1);
+            });
+
+            // Update Enemies
+            if (frameCount % 40 === 0) spawnEnemy();
+
+            enemies.forEach((e, i) => {
+                e.y += e.speed;
+
+                // Collision: Enemy vs Player
+                const dist = Math.hypot(player.x - (e.x + e.w/2), player.y - (e.y + e.h/2));
+                if (dist < (player.w/2 + e.w/2)) {
+                    // Hit player
+                    damagePlayer();
+                    enemies.splice(i, 1);
+                    createExplosion(e.x + e.w/2, e.y + e.h/2, COLORS.player);
+                    return;
+                }
+
+                // Cleanup offscreen
+                if (e.y > canvas.height) enemies.splice(i, 1);
+            });
+
+            // Collision: Bullet vs Enemy
+            bullets.forEach((b, bIdx) => {
+                enemies.forEach((e, eIdx) => {
+                    if (b.x > e.x && b.x < e.x + e.w &&
+                        b.y > e.y && b.y < e.y + e.h) {
+                        
+                        // Hit
+                        e.hp--;
+                        bullets.splice(bIdx, 1);
+                        
+                        if (e.hp <= 0) {
+                            enemies.splice(eIdx, 1);
+                            createExplosion(e.x + e.w/2, e.y + e.h/2, COLORS.bullet);
+                            score += 50;
+                            updateScore();
+                            // Kill haptic
+                            if (navigator.vibrate) navigator.vibrate(15);
+                        } else {
+                            // Hit effect
+                            createExplosion(b.x, b.y, '#fff');
+                        }
+                    }
+                });
+            });
+
+            // Update Particles
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.05;
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+
+            // Starfield background
+            stars.forEach(s => {
+                s.y += s.speed;
+                if (s.y > canvas.height) {
+                    s.y = 0;
+                    s.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        function damagePlayer() {
+            player.hp--;
+            updateHP();
+            
+            // Screen shake effect visual logic (simplified)
+            canvas.style.transform = `translate(${Math.random()*10-5}px, ${Math.random()*10-5}px)`;
+            setTimeout(() => canvas.style.transform = 'none', 100);
+
+            // Strong Haptic
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
+            if (player.hp <= 0) {
+                endGame();
+            }
+        }
+
+        // --- DRAWING ---
+
+        function drawHeart(x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            const topCurveHeight = size * 0.3;
+            ctx.moveTo(x, y + topCurveHeight);
+            // top left curve
+            ctx.bezierCurveTo(
+              x, y, 
+              x - size / 2, y, 
+              x - size / 2, y + topCurveHeight
+            );
+            // bottom left curve
+            ctx.bezierCurveTo(
+              x - size / 2, y + (size + topCurveHeight) / 2, 
+              x, y + (size + topCurveHeight) / 2, 
+              x, y + size
+            );
+            // bottom right curve
+            ctx.bezierCurveTo(
+              x, y + (size + topCurveHeight) / 2, 
+              x + size / 2, y + (size + topCurveHeight) / 2, 
+              x + size / 2, y + topCurveHeight
+            );
+            // top right curve
+            ctx.bezierCurveTo(
+              x + size / 2, y, 
+              x, y, 
+              x, y + topCurveHeight
+            );
+            ctx.closePath();
+            ctx.fill();
+            
+            // Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = color;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function drawSkull(x, y, w, h) {
+            // Glitchy rectangle for enemy
+            ctx.fillStyle = COLORS.enemy;
+            // Jitter effect
+            const jitterX = (Math.random() - 0.5) * 2;
+            
+            ctx.fillRect(x + jitterX, y, w, h);
+            
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x + w*0.2 + jitterX, y + h*0.3, w*0.2, h*0.2);
+            ctx.fillRect(x + w*0.6 + jitterX, y + h*0.3, w*0.2, h*0.2);
+            
+            // Glitch line
+            if (Math.random() > 0.8) {
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(x - 5, y + Math.random()*h, w + 10, 2);
+            }
+        }
+
+        function draw() {
+            // Clear
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Stars (Grid effect)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            stars.forEach(s => {
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            });
+
+            // Draw Player (Heart Shape)
+            if (isPlaying) {
+                drawHeart(player.x, player.y - player.h/2, player.w, COLORS.player);
+            }
+
+            // Draw Bullets
+            ctx.fillStyle = COLORS.bullet;
+            bullets.forEach(b => {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = COLORS.bullet;
+                ctx.fillRect(b.x - b.w/2, b.y, b.w, b.h);
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Enemies
+            enemies.forEach(e => {
+                drawSkull(e.x, e.y, e.w, e.h);
+            });
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, 3, 3);
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        function loop(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            frameCount++;
+
+            update(dt);
+            draw();
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- MANAGE STATE ---
+
+        function initStars() {
+            stars = [];
+            for(let i=0; i<50; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: 0.5 + Math.random() * 2
+                });
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            updateScore();
+            player.hp = 3;
+            updateHP();
+            bullets = [];
+            enemies = [];
+            particles = [];
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            
+            isPlaying = true;
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            
+            if (navigator.vibrate) navigator.vibrate(20);
+        }
+
+        function endGame() {
+            isPlaying = false;
+            finalScoreDisplay.innerText = score;
+            hud.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = score;
+        }
+
+        function updateHP() {
+            let hearts = '';
+            for(let i=0; i<player.hp; i++) hearts += '♥';
+            hpDisplay.innerText = hearts;
+        }
+
+        // --- BOOT ---
+        initStars();
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+</html>
