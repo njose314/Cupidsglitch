@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cupid's Glitch // Final Cut</title>
+    <title>Cupid's Glitch // Final Audio Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -32,14 +32,14 @@
 
         /* Glass UI */
         .glass-panel {
-            background: rgba(20, 20, 20, 0.85);
+            background: rgba(20, 20, 20, 0.9);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 20, 147, 0.5);
             box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
         }
 
         .glass-toast {
-            background: rgba(0, 0, 0, 0.5); /* More translucent */
+            background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(6px);
             border-top: 2px solid #ffd700;
             border-bottom: 2px solid #ffd700;
@@ -64,10 +64,6 @@
     <div class="screen-glow"></div>
     <canvas id="gameCanvas"></canvas>
 
-    <audio id="bgMusic" loop>
-        <source src="https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Rolemusic/gigs_n_contest/Rolemusic_-_02_-_The_White_Kitty.mp3" type="audio/mpeg">
-    </audio>
-
     <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
         <div class="text-pink-500 text-[10px]">ENVELOPES: <span id="letterCount" class="text-white">0/10</span></div>
         <div class="text-pink-500 text-[10px]">HP: <span id="hpDisplay" class="text-white">♥♥♥</span></div>
@@ -85,15 +81,14 @@
         <div class="glass-panel p-6 mb-8 max-w-sm text-left w-full">
             <h3 class="text-xs text-cyan-400 mb-4 border-b border-gray-700 pb-2">MISSION BRIEFING</h3>
             <ul class="text-[10px] text-gray-300 space-y-3 leading-relaxed list-disc pl-4">
-                <li><strong class="text-pink-400">GOAL:</strong> Collect <span class="text-white">10 Love Envelopes</span> to win.</li>
-                <li><strong class="text-pink-400">CONTROLS:</strong> Drag your finger to move. Shooting is <span class="text-white">AUTOMATIC</span>.</li>
-                <li><strong class="text-pink-400">WARNING:</strong> Avoid the Red Glitch Skulls.</li>
-                <li><strong class="text-pink-400">AUDIO:</strong> Best experienced with sound ON.</li>
+                <li><strong class="text-pink-400">GOAL:</strong> Crack open <span class="text-white">10 Love Envelopes</span>.</li>
+                <li><strong class="text-yellow-400">INTEL:</strong> Envelopes are TOUGH. Shoot them repeatedly to open!</li>
+                <li><strong class="text-pink-400">CONTROLS:</strong> Drag to fly. Shooting is <span class="text-white">AUTOMATIC</span>.</li>
             </ul>
         </div>
 
         <button id="startBtn" class="glass-panel px-8 py-4 text-pink-400 text-xs uppercase active:scale-95 animate-pulse font-bold tracking-widest">
-            START MISSION
+            START MISSION (WITH AUDIO)
         </button>
     </div>
 
@@ -108,7 +103,6 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const bgMusic = document.getElementById('bgMusic');
         
         // UI Elements
         const startScreen = document.getElementById('startScreen');
@@ -121,9 +115,114 @@
         const goTitle = document.getElementById('goTitle');
         const goMessage = document.getElementById('goMessage');
 
-        // --- ASSETS: 100+ PICKUP LINES ---
+        // --- INTERNAL AUDIO SYNTHESIZER (Guaranteed Sound) ---
+        let audioCtx;
+        let nextNoteTime = 0;
+        let beatCount = 0;
+        const TEMPO = 140; // Fast paced
+        const SECONDS_PER_BEAT = 60.0 / TEMPO;
+        const SCHEDULE_AHEAD_TIME = 0.1;
+
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+
+        function playKick(time) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            osc.start(time);
+            osc.stop(time + 0.5);
+        }
+
+        function playSnare(time) {
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            const gain = audioCtx.createGain();
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            noise.start(time);
+        }
+
+        function playBass(time, freq) {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.frequency.setValueAtTime(freq, time);
+            filter.frequency.setValueAtTime(1000, time);
+            filter.frequency.exponentialRampToValueAtTime(100, time + 0.2); 
+            
+            gain.gain.setValueAtTime(0.2, time);
+            gain.gain.linearRampToValueAtTime(0, time + 0.2);
+            osc.start(time);
+            osc.stop(time + 0.2);
+        }
+
+        function playHighSynth(time, freq) {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(freq, time);
+            gain.gain.setValueAtTime(0.05, time);
+            gain.gain.linearRampToValueAtTime(0, time + 0.1);
+            osc.start(time);
+            osc.stop(time + 0.1);
+        }
+
+        function scheduler() {
+            while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
+                scheduleNote(beatCount, nextNoteTime);
+                nextNoteTime += SECONDS_PER_BEAT / 4; 
+                beatCount++;
+            }
+            if(state.running) setTimeout(scheduler, 25);
+        }
+
+        function scheduleNote(beat, time) {
+            const step = beat % 16;
+            // Kick: 0, 4, 8, 12
+            if (step % 4 === 0) playKick(time);
+            // Snare: 4, 12
+            if (step === 4 || step === 12) playSnare(time);
+            
+            // Driving Bassline (C Minor: C, Eb, G, Bb)
+            const bassNote = [65.41, 65.41, 77.78, 65.41, 51.91, 51.91, 58.27, 65.41];
+            if (step % 2 === 0) playBass(time, bassNote[Math.floor(beat/4)%8]);
+
+            // High arpeggio
+            if (step % 3 === 0) playHighSynth(time, 523.25 + (step * 50));
+        }
+
+        // --- ASSETS ---
         const ALL_QUOTES = [
-            "Are you a keyboard? Because you're my type.",
+             "Are you a keyboard? Because you're my type.",
             "You auto-complete me.",
             "My heart has zero latency with you.",
             "I'd never delete your cookies.",
@@ -223,15 +322,13 @@
             "I'm subscribing to your heart.",
             "You're the notification I wait for."
         ];
-
         let gameQuotes = [];
 
         const COLORS = {
-            player: '#ff1493', // Deep Pink
-            bullet: '#ff69b4', // Hot Pink
-            enemy: '#ff0000', // Red
-            letter: '#ffffff', // White envelope
-            seal: '#ff0000',
+            player: '#ff1493',
+            bullet: '#ff69b4',
+            enemy: '#ff0000',
+            letter: '#ffffff',
             bg: '#050505'
         };
 
@@ -263,7 +360,7 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             if(!state.running) {
-                // Initial Position: Center, 80% down
+                // Initial: Center, 80% down
                 player.x = canvas.width / 2;
                 player.y = canvas.height * 0.8;
             }
@@ -278,17 +375,8 @@
             inputY = y - rect.top;
             touchActive = true;
         }
-
-        canvas.addEventListener('touchstart', e => {
-            e.preventDefault();
-            updateInput(e.touches[0].clientX, e.touches[0].clientY);
-        }, {passive: false});
-
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            updateInput(e.touches[0].clientX, e.touches[0].clientY);
-        }, {passive: false});
-
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); updateInput(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); updateInput(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
         canvas.addEventListener('touchend', () => touchActive = false);
         canvas.addEventListener('mousedown', e => updateInput(e.clientX, e.clientY));
         canvas.addEventListener('mousemove', e => { if(touchActive) updateInput(e.clientX, e.clientY); });
@@ -313,25 +401,25 @@
         }
 
         function spawnEnvelope() {
-            const size = 40;
+            const size = 50; // Bigger target
             collectibles.push({
                 x: Math.random() * (canvas.width - size),
                 y: -50,
-                w: size, h: size * 0.7, // Envelope ratio
-                speed: 2,
-                wobbleOffset: Math.random() * 100
+                w: size, h: size * 0.7,
+                speed: 1.5, // Slower
+                wobbleOffset: Math.random() * 100,
+                hp: 20, // HARD TO CRACK
+                maxHp: 20,
+                hitFlash: 0
             });
         }
 
         function triggerQuote() {
-            state.slowMo = 90; // longer slo mo
-            
-            // Get quote
+            state.slowMo = 90; 
             const quote = gameQuotes[state.letters % gameQuotes.length];
             quoteText.innerText = quote;
             quoteToast.style.opacity = '1';
             quoteToast.style.transform = 'translateY(0)';
-            
             setTimeout(() => {
                 quoteToast.style.opacity = '0';
                 quoteToast.style.transform = 'translateY(10px)';
@@ -343,23 +431,19 @@
             enemies = [];
             collectibles = [];
             
-            // Big Explosion
+            // Fireworks
             for(let i=0; i<80; i++) {
                 createParticle(canvas.width/2, canvas.height/2, COLORS.player, 15);
                 createParticle(canvas.width/2, canvas.height/2, '#00ffff', 15);
             }
-
             if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200, 50, 500]);
 
             setTimeout(() => {
                 state.running = false;
                 hud.classList.add('hidden');
                 gameOverScreen.classList.remove('hidden');
-                
-                // CUSTOM WIN MESSAGE
                 goTitle.innerText = "HAPPY KISS DAY";
                 goTitle.className = "text-2xl text-pink-500 mb-4 neon-text font-bold";
-                
                 goMessage.innerHTML = `
                     <span class="text-cyan-400">MISSION SUCCESS.</span><br><br>
                     I love you so much.<br>
@@ -399,7 +483,8 @@
                 player.x += Math.sin(state.frameCount * 0.1) * 5;
             }
 
-            if (touchActive && state.frameCount % 8 === 0 && !state.won) {
+            // Fire
+            if (touchActive && state.frameCount % 6 === 0 && !state.won) {
                 bullets.push({ x: player.x, y: player.y - 20, w: 10, h: 10, speed: 12 });
                 if(navigator.vibrate) navigator.vibrate(5);
             }
@@ -411,14 +496,14 @@
 
             if (!state.won) {
                 if (state.frameCount % Math.floor(40/timeScale) === 0) spawnEnemy();
-                // Spawn envelopes slightly less frequently
-                if (state.frameCount % Math.floor(150/timeScale) === 0) spawnEnvelope();
+                // Spawn envelopes: Check if few on screen
+                if (collectibles.length < 1 && state.frameCount % 60 === 0) spawnEnvelope();
+                else if (state.frameCount % Math.floor(200/timeScale) === 0) spawnEnvelope();
             }
 
             enemies.forEach((e, i) => {
                 e.y += e.speed * timeScale;
                 e.angle += 0.1;
-
                 const dist = Math.hypot(player.x - (e.x + e.w/2), player.y - (e.y + e.h/2));
                 if (dist < 30 && !state.won) {
                     player.hp--;
@@ -434,22 +519,35 @@
             collectibles.forEach((c, i) => {
                 c.y += c.speed * timeScale;
                 c.x += Math.sin((c.y + c.wobbleOffset) * 0.05) * 1.5; 
+                if(c.hitFlash > 0) c.hitFlash--;
 
                 bullets.forEach((b, bIdx) => {
                     if (b.x > c.x && b.x < c.x + c.w && b.y > c.y && b.y < c.y + c.h) {
-                        state.letters++;
-                        letterDisplay.innerText = state.letters + "/10";
-                        createParticle(c.x + c.w/2, c.y + c.h/2, COLORS.letter, 2);
-                        if(navigator.vibrate) navigator.vibrate([30, 30, 30]);
-                        triggerQuote();
-                        collectibles.splice(i, 1);
+                        // Hit Envelope
+                        c.hp--;
+                        c.hitFlash = 5;
+                        c.w -= 0.5; // Shrink slightly
+                        c.h -= 0.3;
+                        
                         bullets.splice(bIdx, 1);
-                        if(state.letters >= 10) winGame();
+                        createParticle(b.x, b.y, '#fff', 0.5); // Sparks
+                        
+                        if (c.hp <= 0) {
+                            // CRACK OPEN
+                            state.letters++;
+                            letterDisplay.innerText = state.letters + "/10";
+                            createParticle(c.x + c.w/2, c.y + c.h/2, COLORS.letter, 2);
+                            if(navigator.vibrate) navigator.vibrate([30, 30, 30]);
+                            triggerQuote();
+                            collectibles.splice(i, 1);
+                            if(state.letters >= 10) winGame();
+                        }
                     }
                 });
                 if (c.y > canvas.height) collectibles.splice(i, 1);
             });
 
+            // Bullets vs Enemies
             bullets.forEach((b, bIdx) => {
                 enemies.forEach((e, eIdx) => {
                     if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
@@ -490,12 +588,19 @@
             ctx.fill();
         }
 
-        function drawEnvelope(x, y, w, h) {
-            // White background
-            ctx.fillStyle = '#eee';
+        function drawEnvelope(c) {
+            let x = c.x, y = c.y, w = c.w, h = c.h;
+            
+            // Flash white on hit
+            ctx.fillStyle = c.hitFlash > 0 ? '#fff' : '#eee';
+            
+            // Shake effect
+            if (c.hitFlash > 0) {
+                x += (Math.random() - 0.5) * 4;
+            }
+
             ctx.fillRect(x, y, w, h);
             
-            // Flap lines
             ctx.strokeStyle = '#ccc';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -504,8 +609,15 @@
             ctx.lineTo(x + w, y);
             ctx.stroke();
 
-            // Heart Seal
             drawHeart(x + w/2, y + h/1.5 - 5, 10, '#ff0000');
+            
+            // Health Bar Mini
+            if (c.hp < c.maxHp) {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(x, y - 5, w, 3);
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(x, y - 5, w * (c.hp / c.maxHp), 3);
+            }
         }
 
         function draw() {
@@ -545,9 +657,7 @@
                 ctx.restore();
             });
 
-            collectibles.forEach(c => {
-                drawEnvelope(c.x, c.y, c.w, c.h);
-            });
+            collectibles.forEach(c => drawEnvelope(c));
 
             particles.forEach(p => {
                 ctx.fillStyle = p.color;
@@ -577,16 +687,16 @@
                     speed: 0.5 + Math.random() * 3
                 });
             }
-            
-            // Set initial player position (Bottom Center)
             player.x = window.innerWidth / 2;
             player.y = window.innerHeight * 0.8;
         }
 
         function startGame() {
-            // Attempt Audio
-            bgMusic.volume = 0.5;
-            bgMusic.play().catch(e => console.log("Audio waiting for interact"));
+            initAudio();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            beatCount = 0;
+            nextNoteTime = audioCtx.currentTime + 0.1;
+            scheduler();
 
             shuffleQuotes();
             state.running = true;
@@ -598,7 +708,6 @@
             enemies = [];
             collectibles = [];
             
-            // Reset position
             player.x = canvas.width / 2;
             player.y = canvas.height * 0.8;
             
@@ -618,9 +727,6 @@
             goTitle.className = "text-xl text-red-500 mb-4 neon-text";
             goMessage.innerText = "THE GLITCH WON. TRY AGAIN.";
             if(navigator.vibrate) navigator.vibrate(300);
-            
-            // Optional: Pause music or let it loop
-            // bgMusic.pause();
         }
 
         function updateHP() {
