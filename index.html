@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cupid's Glitch // Ultimate Edition</title>
+    <title>Cupid's Glitch // Final Cut</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -30,12 +30,19 @@
             pointer-events: none; z-index: 40;
         }
 
-        /* UI Styling */
+        /* Glass UI */
         .glass-panel {
-            background: rgba(10, 10, 10, 0.9);
-            backdrop-filter: blur(8px);
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 20, 147, 0.5);
             box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
+        }
+
+        .glass-toast {
+            background: rgba(0, 0, 0, 0.5); /* More translucent */
+            backdrop-filter: blur(6px);
+            border-top: 2px solid #ffd700;
+            border-bottom: 2px solid #ffd700;
         }
 
         .neon-text { text-shadow: 0 0 10px #ff1493, 0 0 20px #ff1493; }
@@ -43,7 +50,6 @@
         /* Floating Quote Toast */
         #quoteToast {
             transition: opacity 0.5s ease, transform 0.5s ease;
-            text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
             width: 90%;
             max-width: 400px;
         }
@@ -58,25 +64,37 @@
     <div class="screen-glow"></div>
     <canvas id="gameCanvas"></canvas>
 
+    <audio id="bgMusic" loop>
+        <source src="https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Rolemusic/gigs_n_contest/Rolemusic_-_02_-_The_White_Kitty.mp3" type="audio/mpeg">
+    </audio>
+
     <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
         <div class="text-pink-500 text-[10px]">ENVELOPES: <span id="letterCount" class="text-white">0/10</span></div>
         <div class="text-pink-500 text-[10px]">HP: <span id="hpDisplay" class="text-white">♥♥♥</span></div>
     </div>
 
     <div id="quoteToast" class="absolute top-1/4 left-0 right-0 mx-auto text-center pointer-events-none z-50 opacity-0 transform translate-y-4">
-        <p class="text-yellow-400 text-[10px] leading-loose bg-black/90 p-4 border-t-2 border-b-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)]" id="quoteText">
+        <p class="glass-toast text-yellow-300 text-[10px] leading-loose p-4 shadow-[0_0_15px_rgba(255,215,0,0.3)]" id="quoteText">
             "Locating heart signal..."
         </p>
     </div>
 
     <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center">
-        <h1 class="text-2xl text-pink-500 mb-4 neon-text">CUPID'S GLITCH</h1>
-        <p class="text-[10px] text-gray-400 mb-8 max-w-xs leading-relaxed">
-            MISSION: COLLECT 10 LOVE LETTERS.<br><br>
-            AUDIO: ENABLED.<br>
-            DRAG TO SHOOT KISSES.
-        </p>
-        <button id="startBtn" class="glass-panel px-6 py-4 text-pink-400 text-xs uppercase active:scale-95 animate-pulse">INITIATE SEQUENCE</button>
+        <h1 class="text-2xl text-pink-500 mb-6 neon-text">CUPID'S GLITCH</h1>
+        
+        <div class="glass-panel p-6 mb-8 max-w-sm text-left w-full">
+            <h3 class="text-xs text-cyan-400 mb-4 border-b border-gray-700 pb-2">MISSION BRIEFING</h3>
+            <ul class="text-[10px] text-gray-300 space-y-3 leading-relaxed list-disc pl-4">
+                <li><strong class="text-pink-400">GOAL:</strong> Collect <span class="text-white">10 Love Envelopes</span> to win.</li>
+                <li><strong class="text-pink-400">CONTROLS:</strong> Drag your finger to move. Shooting is <span class="text-white">AUTOMATIC</span>.</li>
+                <li><strong class="text-pink-400">WARNING:</strong> Avoid the Red Glitch Skulls.</li>
+                <li><strong class="text-pink-400">AUDIO:</strong> Best experienced with sound ON.</li>
+            </ul>
+        </div>
+
+        <button id="startBtn" class="glass-panel px-8 py-4 text-pink-400 text-xs uppercase active:scale-95 animate-pulse font-bold tracking-widest">
+            START MISSION
+        </button>
     </div>
 
     <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 p-6 text-center overflow-y-auto">
@@ -90,6 +108,7 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const bgMusic = document.getElementById('bgMusic');
         
         // UI Elements
         const startScreen = document.getElementById('startScreen');
@@ -101,111 +120,6 @@
         const quoteText = document.getElementById('quoteText');
         const goTitle = document.getElementById('goTitle');
         const goMessage = document.getElementById('goMessage');
-
-        // --- AUDIO ENGINE (Procedural Synthwave) ---
-        let audioCtx;
-        let isMuted = false;
-        let nextNoteTime = 0;
-        let beatCount = 0;
-        const TEMPO = 130;
-        const SECONDS_PER_BEAT = 60.0 / TEMPO;
-        const LOOKAHEAD = 25.0; // ms
-        const SCHEDULE_AHEAD_TIME = 0.1; // s
-
-        function initAudio() {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-        }
-
-        function playKick(time) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(150, time);
-            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-            gain.gain.setValueAtTime(1, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-            osc.start(time);
-            osc.stop(time + 0.5);
-        }
-
-        function playSnare(time) {
-            const bufferSize = audioCtx.sampleRate * 0.5; // .5 seconds
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const gain = audioCtx.createGain();
-            // Filter to make it sound more like synth snare
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 1000;
-            
-            noise.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-            
-            gain.gain.setValueAtTime(0.5, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-            noise.start(time);
-        }
-
-        function playBass(time, freq) {
-            const osc = audioCtx.createOscillator();
-            osc.type = 'sawtooth';
-            const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.frequency.setValueAtTime(freq, time);
-            filter.frequency.setValueAtTime(800, time);
-            filter.frequency.exponentialRampToValueAtTime(100, time + 0.2); // Wub effect
-            
-            gain.gain.setValueAtTime(0.3, time);
-            gain.gain.linearRampToValueAtTime(0, time + 0.2);
-            
-            osc.start(time);
-            osc.stop(time + 0.2);
-        }
-
-        function scheduler() {
-            while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
-                scheduleNote(beatCount, nextNoteTime);
-                nextNoteTime += SECONDS_PER_BEAT / 4; // 16th notes
-                beatCount++;
-            }
-            if(state.running) setTimeout(scheduler, LOOKAHEAD);
-        }
-
-        function scheduleNote(beatNumber, time) {
-            const sixteenth = beatNumber % 16;
-            
-            // Kick on 0, 4, 8, 12 (Quarter notes)
-            if (sixteenth % 4 === 0) {
-                playKick(time);
-            }
-            
-            // Snare on 4, 12
-            if (sixteenth === 4 || sixteenth === 12) {
-                playSnare(time);
-            }
-
-            // Driving Bassline (Arpeggio ish) - C Minor scale ish
-            const bassNotes = [65.41, 65.41, 77.78, 65.41, 51.91, 51.91, 58.27, 65.41]; // C2, Eb2, Ab1, Bb1
-            const noteIdx = Math.floor(beatNumber / 4) % 8;
-            if (sixteenth % 2 === 0) { // 8th notes
-                 playBass(time, bassNotes[noteIdx]);
-            }
-        }
-
 
         // --- ASSETS: 100+ PICKUP LINES ---
         const ALL_QUOTES = [
@@ -349,8 +263,9 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             if(!state.running) {
+                // Initial Position: Center, 80% down
                 player.x = canvas.width / 2;
-                player.y = canvas.height - 150;
+                player.y = canvas.height * 0.8;
             }
         }
         window.addEventListener('resize', resize);
@@ -428,12 +343,6 @@
             enemies = [];
             collectibles = [];
             
-            // Audio Climax (Filter open)
-            if(audioCtx) {
-                // Just keep the beat running but maybe change pitch? 
-                // Keeping it simple to avoid glitching
-            }
-
             // Big Explosion
             for(let i=0; i<80; i++) {
                 createParticle(canvas.width/2, canvas.height/2, COLORS.player, 15);
@@ -668,16 +577,16 @@
                     speed: 0.5 + Math.random() * 3
                 });
             }
+            
+            // Set initial player position (Bottom Center)
+            player.x = window.innerWidth / 2;
+            player.y = window.innerHeight * 0.8;
         }
 
         function startGame() {
-            initAudio();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            
-            // Start beat
-            beatCount = 0;
-            nextNoteTime = audioCtx.currentTime + 0.1;
-            scheduler();
+            // Attempt Audio
+            bgMusic.volume = 0.5;
+            bgMusic.play().catch(e => console.log("Audio waiting for interact"));
 
             shuffleQuotes();
             state.running = true;
@@ -688,6 +597,10 @@
             bullets = [];
             enemies = [];
             collectibles = [];
+            
+            // Reset position
+            player.x = canvas.width / 2;
+            player.y = canvas.height * 0.8;
             
             letterDisplay.innerText = "0/10";
             updateHP();
@@ -706,8 +619,8 @@
             goMessage.innerText = "THE GLITCH WON. TRY AGAIN.";
             if(navigator.vibrate) navigator.vibrate(300);
             
-            // Stop audio is tricky without reloading, so we just let it fade or stop scheduling
-            // For arcade feel, music continuing on game over is standard :)
+            // Optional: Pause music or let it loop
+            // bgMusic.pause();
         }
 
         function updateHP() {
