@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Archer // Synthwave Strike</title>
+    <title>NEON ARCHER // SYNTHWAVE STRIKE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #050505;
-            color: #fff;
+            background-color: #0a0e27;
+            color: #00ffff;
             overflow: hidden;
             font-family: 'Press Start 2P', monospace;
             touch-action: none;
@@ -19,95 +25,189 @@
 
         /* CRT Effects */
         .scanlines {
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.15));
             background-size: 100% 4px;
-            position: absolute; inset: 0; pointer-events: none; z-index: 50;
+            position: absolute; 
+            inset: 0; 
+            pointer-events: none; 
+            z-index: 50;
         }
         
         .screen-glow {
-            position: absolute; inset: 0;
-            background: radial-gradient(circle, rgba(0,255,255,0.1) 0%, rgba(0,0,0,0.9) 100%);
-            pointer-events: none; z-index: 40;
+            position: absolute; 
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(0,255,255,0.08) 0%, rgba(255,0,255,0.04) 50%, rgba(0,0,0,0.95) 100%);
+            pointer-events: none; 
+            z-index: 40;
         }
 
-        /* Glass UI */
+        /* Enhanced Glass UI */
         .glass-panel {
-            background: rgba(20, 20, 20, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 255, 255, 0.5);
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            background: rgba(10, 14, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.1);
         }
 
         .glass-toast {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(6px);
-            border-top: 2px solid #00ffff;
-            border-bottom: 2px solid #00ffff;
+            background: rgba(10, 14, 39, 0.9);
+            backdrop-filter: blur(8px);
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.15);
         }
 
-        .neon-text { text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff; }
-        
+        /* Neon Text Styles */
+        .neon-text-cyan { 
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff, 0 0 40px #0088ff;
+            font-weight: bold;
+        }
+
+        .neon-text-pink { 
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff, 0 0 40px #ff0088;
+            font-weight: bold;
+        }
+
+        .neon-text-yellow { 
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ffff00;
+            font-weight: bold;
+        }
+
         #quoteToast {
             transition: opacity 0.5s ease, transform 0.5s ease;
             width: 90%;
-            max-width: 400px;
+            max-width: 450px;
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
-        .hidden { display: none !important; }
-        
-        #audioStatus {
-            position: absolute;
-            bottom-4 right-4;
-            font-size: 8px;
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%; 
+        }
+
+        .hidden { 
+            display: none !important; 
+        }
+
+        /* Button Styles */
+        button {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        button:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6) !important;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* HUD Styles */
+        .hud-text {
             color: #00ffff;
-            z-index: 30;
-            text-shadow: 0 0 5px #00ffff;
+            text-shadow: 0 0 8px #00ffff, 0 0 16px #00ffff;
+            font-weight: bold;
+        }
+
+        .hud-value {
+            color: #ffff00;
+            text-shadow: 0 0 8px #ffff00, 0 0 16px #ffff00;
+        }
+
+        /* Quote Toast */
+        .quote-text {
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00;
+            font-weight: bold;
+        }
+
+        /* Mission Briefing */
+        .mission-title {
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+        }
+
+        .mission-text {
+            color: #00ffff;
+            text-shadow: 0 0 8px #00ffff;
+        }
+
+        .mission-label {
+            color: #ffff00;
+            text-shadow: 0 0 8px #ffff00;
+        }
+
+        /* Game Over Screen */
+        .game-over-title {
+            color: #00ffff;
+            text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
+            font-size: 2rem;
+        }
+
+        .game-over-message {
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .game-over-signoff {
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+            font-size: 0.7rem;
         }
     </style>
 </head>
-<body class="h-dvh w-screen flex flex-col items-center justify-center relative bg-black">
+<body class="h-dvh w-screen flex flex-col items-center justify-center relative">
 
     <div class="scanlines"></div>
     <div class="screen-glow"></div>
     <canvas id="gameCanvas"></canvas>
     
-    <audio id="bgm" loop crossorigin="anonymous"></audio>
-    <div id="audioStatus">🎵 SYNTHWAVE</div>
+    <!-- Audio Element with CORS and autoplay support -->
+    <audio id="bgm" loop preload="auto"></audio>
 
-    <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
-        <div class="text-cyan-400 text-[10px]">ENVELOPES: <span id="letterCount" class="text-white">0/10</span></div>
-        <div class="text-cyan-400 text-[10px]">HP: <span id="hpDisplay" class="text-white">♥♥♥</span></div>
+    <!-- HUD -->
+    <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none px-4">
+        <div class="hud-text text-[10px]">ENVELOPES: <span id="letterCount" class="hud-value">0/10</span></div>
+        <div class="hud-text text-[10px]">HP: <span id="hpDisplay" class="hud-value">♥♥♥</span></div>
     </div>
 
+    <!-- Quote Toast -->
     <div id="quoteToast" class="absolute top-1/4 left-0 right-0 mx-auto text-center pointer-events-none z-50 opacity-0 transform translate-y-4">
-        <p class="glass-toast text-yellow-300 text-[10px] leading-loose p-4 shadow-[0_0_15px_rgba(0,255,255,0.3)]" id="quoteText">
+        <p class="glass-toast quote-text text-[10px] leading-relaxed p-4" id="quoteText">
             "Locating heart signal..."
         </p>
     </div>
 
-    <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center">
-        <h1 class="text-2xl text-cyan-500 mb-6 neon-text">NEON ARCHER</h1>
+    <!-- Start Screen -->
+    <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/98 p-6 text-center">
+        <h1 class="neon-text-cyan mb-8" style="font-size: 2.5rem; letter-spacing: 2px;">NEON ARCHER</h1>
         
         <div class="glass-panel p-6 mb-8 max-w-sm text-left w-full">
-            <h3 class="text-xs text-pink-400 mb-4 border-b border-gray-700 pb-2">MISSION BRIEFING</h3>
-            <ul class="text-[10px] text-gray-300 space-y-3 leading-relaxed list-disc pl-4">
-                <li><strong class="text-cyan-400">GOAL:</strong> Crack open <span class="text-white">10 Love Envelopes</span>.</li>
-                <li><strong class="text-yellow-400">INTEL:</strong> Envelopes are TOUGH. Shoot them repeatedly!</li>
-                <li><strong class="text-cyan-400">CONTROLS:</strong> Drag to move. Shooting is <span class="text-white">AUTOMATIC</span>.</li>
+            <h3 class="mission-title mb-4 border-b-2 border-cyan-500 pb-3" style="font-size: 0.8rem;">MISSION BRIEFING</h3>
+            <ul class="text-[9px] mission-text space-y-3 leading-relaxed list-disc pl-5">
+                <li><span class="mission-label">GOAL:</span> Crack open <span class="hud-value">10 Love Envelopes</span>.</li>
+                <li><span class="mission-label">INTEL:</span> Envelopes are TOUGH. Shoot them repeatedly!</li>
+                <li><span class="mission-label">CONTROLS:</span> Drag to move. Shooting is <span class="hud-value">AUTOMATIC</span>.</li>
             </ul>
         </div>
 
-        <button id="startBtn" class="glass-panel px-8 py-4 text-cyan-400 text-xs uppercase active:scale-95 animate-pulse font-bold tracking-widest">
-            START MISSION (WITH SYNTHWAVE)
+        <button id="startBtn" class="glass-panel px-8 py-4 neon-text-cyan text-xs uppercase font-bold tracking-widest" style="letter-spacing: 1px;">
+            ▶ PLAY
         </button>
     </div>
 
-    <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 p-6 text-center overflow-y-auto">
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/98 p-6 text-center overflow-y-auto">
         <div class="my-auto">
-            <h2 id="goTitle" class="text-xl mb-4 neon-text"></h2>
-            <div id="goMessage" class="text-[10px] text-gray-300 mb-8 leading-loose max-w-xs mx-auto"></div>
-            <button id="restartBtn" class="glass-panel px-6 py-4 text-cyan-400 text-xs uppercase active:scale-95">RESTART SYSTEM</button>
+            <h2 id="goTitle" class="game-over-title mb-6"></h2>
+            <div id="goMessage" class="game-over-message text-[10px] mb-8 leading-relaxed max-w-sm mx-auto"></div>
+            <button id="restartBtn" class="glass-panel px-6 py-4 neon-text-cyan text-xs uppercase font-bold">
+                ↻ RESTART
+            </button>
         </div>
     </div>
 
@@ -125,11 +225,25 @@
         const quoteText = document.getElementById('quoteText');
         const goTitle = document.getElementById('goTitle');
         const goMessage = document.getElementById('goMessage');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
 
-        // --- AUDIO SETUP ---
-        // Using a fast synthwave track from free-stock-music.com
-        bgm.src = 'https://on.soundcloud.com/OqkaHYhA4tjmJESHgI';
-        bgm.volume = 0.5;
+        // --- AUDIO SETUP WITH FALLBACK ---
+        // Primary: Direct MP3 from free-stock-music.com
+        // Fallback: Use a CORS-enabled proxy or alternative source
+        const audioSources = [
+            'https://www.free-stock-music.com/music/fsm-team/mp3/fsm-team-escp-magenta-metropolis.mp3',
+            'https://cdn.pixabay.com/download/audio/2022/03/10/audio_d73998460.mp3' // Pixabay fallback
+        ];
+
+        bgm.volume = 0.6;
+        bgm.src = audioSources[0];
+
+        // Handle audio errors and try fallback
+        bgm.addEventListener('error', () => {
+            console.log('Primary audio source failed, trying fallback...');
+            bgm.src = audioSources[1];
+        });
 
         // --- ASSETS & DATA ---
         const ALL_QUOTES = [
@@ -238,7 +352,7 @@
             bullet: '#00ffff',
             enemy: '#ff0055',
             letter: '#ffffff',
-            bg: '#050505'
+            bg: '#0a0e27'
         };
 
         // Entities
@@ -350,14 +464,12 @@
                 hud.classList.add('hidden');
                 gameOverScreen.classList.remove('hidden');
                 goTitle.innerText = "MISSION COMPLETE";
-                goTitle.className = "text-2xl text-cyan-400 mb-4 neon-text font-bold";
                 goMessage.innerHTML = `
-                    <span class="text-pink-500">SYSTEM STABILIZED.</span><br><br>
+                    <span style="color: #ff00ff; text-shadow: 0 0 10px #ff00ff;">SYSTEM STABILIZED.</span><br><br>
                     I love you so much.<br>
                     Your kisses still give me real butterflies in this digital world.<br><br>
-                    <span class="text-[8px] text-pink-700 italic">I love making these mini games ONLY and ONLY for you. 😘</span><br><br>
-                    - with love,<br>
-                    Your designheaded man
+                    <span class="game-over-signoff">I love making these mini games ONLY and ONLY for you. 😘</span><br><br>
+                    <span style="color: #ff00ff; text-shadow: 0 0 10px #ff00ff;">- with love,<br>Your designheaded man</span>
                 `;
             }, 2500);
         }
@@ -479,8 +591,8 @@
         // --- DRAWING ---
         function drawBow(x, y, color) {
             ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 10;
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 20;
             ctx.shadowColor = color;
             
             // Bow curve
@@ -489,7 +601,7 @@
             ctx.stroke();
             
             // Bow string
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(x - 20, y + 3);
             ctx.lineTo(x + 20, y + 3);
@@ -502,7 +614,7 @@
             ctx.strokeStyle = color;
             ctx.fillStyle = color;
             ctx.lineWidth = 2;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 20;
             ctx.shadowColor = color;
             
             // Shaft
@@ -552,7 +664,10 @@
                 ctx.fillStyle = '#333';
                 ctx.fillRect(x, y - 8, w, 4);
                 ctx.fillStyle = '#00ffff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ffff';
                 ctx.fillRect(x, y - 8, w * (c.hp / c.maxHp), 4);
+                ctx.shadowBlur = 0;
             }
         }
 
@@ -560,13 +675,19 @@
             ctx.fillStyle = COLORS.bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
+            stars.forEach(s => {
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#00ffff';
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+                ctx.shadowBlur = 0;
+            });
 
             if(state.running || state.won) {
                 if(touchActive && !state.won) {
-                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
                     ctx.setLineDash([5, 5]);
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(player.x, player.y + 20);
                     ctx.lineTo(inputX, inputY);
@@ -583,7 +704,7 @@
                 ctx.save();
                 ctx.translate(e.x + e.w/2, e.y + e.h/2);
                 ctx.rotate(Math.sin(e.angle)*0.2);
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 15;
                 ctx.shadowColor = COLORS.enemy;
                 ctx.fillRect(-e.w/2, -e.h/2, e.w, e.h);
                 ctx.fillStyle = '#000';
@@ -598,8 +719,11 @@
             particles.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.globalAlpha = p.life;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.color;
                 ctx.fillRect(p.x, p.y, 4, 4);
                 ctx.globalAlpha = 1.0;
+                ctx.shadowBlur = 0;
             });
         }
 
@@ -614,11 +738,11 @@
 
         function init() {
             stars = [];
-            for(let i=0; i<80; i++) {
+            for(let i=0; i<100; i++) {
                 stars.push({
                     x: Math.random() * window.innerWidth,
                     y: Math.random() * window.innerHeight,
-                    size: Math.random() * 2,
+                    size: Math.random() * 2.5,
                     speed: 1 + Math.random() * 4
                 });
             }
@@ -627,8 +751,16 @@
         }
 
         function startGame() {
+            // Attempt to play audio with user interaction
             bgm.currentTime = 0;
-            bgm.play().catch(e => console.log("Audio play failed:", e));
+            const playPromise = bgm.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log('Audio autoplay failed:', error);
+                    // Audio will play on next user interaction
+                });
+            }
             
             shuffleQuotes();
             state.running = true;
@@ -657,8 +789,7 @@
             hud.classList.add('hidden');
             gameOverScreen.classList.remove('hidden');
             goTitle.innerText = "SYSTEM CRASH";
-            goTitle.className = "text-xl text-red-500 mb-4 neon-text";
-            goMessage.innerText = "THE GLITCH WON. REBOOT AND TRY AGAIN.";
+            goMessage.innerHTML = `<span style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">THE GLITCH WON.</span><br><br>REBOOT AND TRY AGAIN.`;
             if(navigator.vibrate) navigator.vibrate(300);
         }
 
@@ -666,9 +797,18 @@
             hpDisplay.innerText = "♥".repeat(player.hp);
         }
 
+        // Event listeners
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Allow audio to play on any user interaction
+        document.addEventListener('click', () => {
+            if (bgm.paused && state.running) {
+                bgm.play().catch(e => console.log('Audio play error:', e));
+            }
+        });
+
         init();
-        document.getElementById('startBtn').addEventListener('click', startGame);
-        document.getElementById('restartBtn').addEventListener('click', startGame);
         requestAnimationFrame(loop);
 
     </script>
