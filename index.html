@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cupid's Glitch // Love Protocol</title>
+    <title>Cupid's Glitch // Ultimate Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -38,9 +38,8 @@
             box-shadow: 0 0 15px rgba(255, 20, 147, 0.2);
         }
 
-        .neon-text { text-shadow: 0 0 10px #ff1493; }
-        .win-text { text-shadow: 0 0 20px #00ffff; color: #00ffff; }
-
+        .neon-text { text-shadow: 0 0 10px #ff1493, 0 0 20px #ff1493; }
+        
         /* Floating Quote Toast */
         #quoteToast {
             transition: opacity 0.5s ease, transform 0.5s ease;
@@ -60,30 +59,32 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
-        <div class="text-pink-500 text-[10px]">LETTERS: <span id="letterCount" class="text-white">0/5</span></div>
+        <div class="text-pink-500 text-[10px]">ENVELOPES: <span id="letterCount" class="text-white">0/10</span></div>
         <div class="text-pink-500 text-[10px]">HP: <span id="hpDisplay" class="text-white">♥♥♥</span></div>
     </div>
 
     <div id="quoteToast" class="absolute top-1/4 left-0 right-0 mx-auto text-center pointer-events-none z-50 opacity-0 transform translate-y-4">
-        <p class="text-yellow-400 text-xs leading-loose bg-black/80 p-4 border-t-2 border-b-2 border-yellow-400" id="quoteText">
-            "Your vibe attracts your tribe."
+        <p class="text-yellow-400 text-[10px] leading-loose bg-black/90 p-4 border-t-2 border-b-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)]" id="quoteText">
+            "Locating heart signal..."
         </p>
     </div>
 
     <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center">
         <h1 class="text-2xl text-pink-500 mb-4 neon-text">CUPID'S GLITCH</h1>
         <p class="text-[10px] text-gray-400 mb-8 max-w-xs leading-relaxed">
-            MISSION: COLLECT 5 LOVE LETTERS.<br><br>
-            AVOID BAD VIBES.<br>
+            MISSION: COLLECT 10 LOVE LETTERS.<br><br>
+            AUDIO: ENABLED.<br>
             DRAG TO SHOOT KISSES.
         </p>
-        <button id="startBtn" class="glass-panel px-6 py-4 text-pink-400 text-xs uppercase active:scale-95">START MISSION</button>
+        <button id="startBtn" class="glass-panel px-6 py-4 text-pink-400 text-xs uppercase active:scale-95 animate-pulse">INITIATE SEQUENCE</button>
     </div>
 
-    <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 p-6 text-center">
-        <h2 id="goTitle" class="text-xl text-red-500 mb-4 neon-text">HEARTBROKEN</h2>
-        <p id="goMessage" class="text-[10px] text-gray-300 mb-8">THE BAD VIBES WON.</p>
-        <button id="restartBtn" class="glass-panel px-6 py-4 text-pink-400 text-xs uppercase active:scale-95">TRY AGAIN</button>
+    <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 p-6 text-center overflow-y-auto">
+        <div class="my-auto">
+            <h2 id="goTitle" class="text-xl mb-4 neon-text"></h2>
+            <div id="goMessage" class="text-[10px] text-gray-300 mb-8 leading-loose max-w-xs mx-auto"></div>
+            <button id="restartBtn" class="glass-panel px-6 py-4 text-pink-400 text-xs uppercase active:scale-95">RESTART SYSTEM</button>
+        </div>
     </div>
 
     <script>
@@ -101,34 +102,223 @@
         const goTitle = document.getElementById('goTitle');
         const goMessage = document.getElementById('goMessage');
 
-        // Assets
-        const QUOTES = [
-            "Your smile is my favorite code.",
-            "You make my heart skip a beat.",
-            "My love for you has no bugs.",
-            "You are the CSS to my HTML.",
-            "Forever my Player 2.",
-            "Your eyes shine brighter than neon.",
-            "Status: 100% In Love."
+        // --- AUDIO ENGINE (Procedural Synthwave) ---
+        let audioCtx;
+        let isMuted = false;
+        let nextNoteTime = 0;
+        let beatCount = 0;
+        const TEMPO = 130;
+        const SECONDS_PER_BEAT = 60.0 / TEMPO;
+        const LOOKAHEAD = 25.0; // ms
+        const SCHEDULE_AHEAD_TIME = 0.1; // s
+
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+
+        function playKick(time) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            osc.start(time);
+            osc.stop(time + 0.5);
+        }
+
+        function playSnare(time) {
+            const bufferSize = audioCtx.sampleRate * 0.5; // .5 seconds
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = audioCtx.createGain();
+            // Filter to make it sound more like synth snare
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            gain.gain.setValueAtTime(0.5, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            noise.start(time);
+        }
+
+        function playBass(time, freq) {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.frequency.setValueAtTime(freq, time);
+            filter.frequency.setValueAtTime(800, time);
+            filter.frequency.exponentialRampToValueAtTime(100, time + 0.2); // Wub effect
+            
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.linearRampToValueAtTime(0, time + 0.2);
+            
+            osc.start(time);
+            osc.stop(time + 0.2);
+        }
+
+        function scheduler() {
+            while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
+                scheduleNote(beatCount, nextNoteTime);
+                nextNoteTime += SECONDS_PER_BEAT / 4; // 16th notes
+                beatCount++;
+            }
+            if(state.running) setTimeout(scheduler, LOOKAHEAD);
+        }
+
+        function scheduleNote(beatNumber, time) {
+            const sixteenth = beatNumber % 16;
+            
+            // Kick on 0, 4, 8, 12 (Quarter notes)
+            if (sixteenth % 4 === 0) {
+                playKick(time);
+            }
+            
+            // Snare on 4, 12
+            if (sixteenth === 4 || sixteenth === 12) {
+                playSnare(time);
+            }
+
+            // Driving Bassline (Arpeggio ish) - C Minor scale ish
+            const bassNotes = [65.41, 65.41, 77.78, 65.41, 51.91, 51.91, 58.27, 65.41]; // C2, Eb2, Ab1, Bb1
+            const noteIdx = Math.floor(beatNumber / 4) % 8;
+            if (sixteenth % 2 === 0) { // 8th notes
+                 playBass(time, bassNotes[noteIdx]);
+            }
+        }
+
+
+        // --- ASSETS: 100+ PICKUP LINES ---
+        const ALL_QUOTES = [
+            "Are you a keyboard? Because you're my type.",
+            "You auto-complete me.",
+            "My heart has zero latency with you.",
+            "I'd never delete your cookies.",
+            "You're the CSS to my HTML.",
+            "Overclocking my heart...",
+            "Status: 100% In Love.",
+            "You are my favorite notification.",
+            "Are you Wi-Fi? I'm feeling a connection.",
+            "You make my floppy disk a hard drive.",
+            "Is your name Google? You have everything I search for.",
+            "You had me at 'Hello World'.",
+            "My love for you is infinite loop.",
+            "You are the root user of my heart.",
+            "I want to Ctrl+S you forever.",
+            "Are you a glitch? Because I can't take my eyes off you.",
+            "You update my software automatically.",
+            "Let's pair our devices.",
+            "You are my high score.",
+            "I'm stuck in your orbit.",
+            "Your smile renders perfectly.",
+            "No firewall can stop my love.",
+            "You are the only variable I need.",
+            "Let's Git Commit to each other.",
+            "You make my heart beat faster than 5G.",
+            "I'd pause my game for you.",
+            "You're hotter than my laptop running cyberpunk.",
+            "Are you a GPU? Because you make everything look better.",
+            "Love.exe has executed successfully.",
+            "You're my Player 2.",
+            "Let's sync our hearts.",
+            "You're the missing pixel in my life.",
+            "I'm laggy when you're not around.",
+            "You have full admin rights to my heart.",
+            "Your interface is beautiful.",
+            "Let's connect on a deeper protocol.",
+            "You charge my battery.",
+            "I'm buffering... admiring you.",
+            "Are you Bluetooth? I feel paired.",
+            "You're the source code of my happiness.",
+            "System Overload: Too much cute.",
+            "I'd reboot my life for you.",
+            "You're my home page.",
+            "Let's encrypt our love.",
+            "You're 4K resolution in a 1080p world.",
+            "My love bandwidth is unlimited for you.",
+            "You're the master key to my heart.",
+            "I'm detecting high levels of attraction.",
+            "You're my daily reward.",
+            "Are you a magnet? I'm attracted.",
+            "Let's make some memories in the cloud.",
+            "You're better than free Wi-Fi.",
+            "I'd trade all my loot for a kiss.",
+            "You're the glitch I never want to fix.",
+            "My heart runs on your OS.",
+            "You're the unexpected update I needed.",
+            "Let's go AFK together.",
+            "You're my favorite algorithm.",
+            "I'm scanning for your love.",
+            "You're the logic to my chaos.",
+            "I'm compiled just for you.",
+            "Let's build a life stack.",
+            "You're the best feature, not a bug.",
+            "I'm hardcoded to love you.",
+            "You make my fans spin fast.",
+            "Are you a touchscreen? I want to hold you.",
+            "You're the VIP in my server.",
+            "Let's duo queue for life.",
+            "You're my ultimate ability.",
+            "I'm farming XP (Xtra Passion) for you.",
+            "You're a legendary drop.",
+            "My ping is 0 when I'm with you.",
+            "You're the graphics card to my display.",
+            "I'd rage quit the world for you.",
+            "You're the save point in my day.",
+            "Let's level up together.",
+            "You're the cheat code to happiness.",
+            "I'm streaming my love to you.",
+            "You're the best skin in the game.",
+            "My heart has a dedicated server for you.",
+            "You're the raid boss of beauty.",
+            "Let's mod this world together.",
+            "You're the expansion pack to my life.",
+            "I'm gridlocked on you.",
+            "You're the syntax to my sugar.",
+            "I'd debug your code any day.",
+            "You're the kernel of my OS.",
+            "I'm overflowing with love.",
+            "You're the binary to my soul.",
+            "Let's run a diagnostic on our love (Result: Perfect).",
+            "You're the cache I never clear.",
+            "I'm hooked on your API.",
+            "You're the bandwidth to my heart.",
+            "I'm formatted for you.",
+            "You're the patch note I waited for.",
+            "Let's initiate the cuddle protocol.",
+            "You're the verified tick in my life.",
+            "I'm subscribing to your heart.",
+            "You're the notification I wait for."
         ];
+
+        let gameQuotes = [];
 
         const COLORS = {
             player: '#ff1493', // Deep Pink
             bullet: '#ff69b4', // Hot Pink
             enemy: '#ff0000', // Red
-            letter: '#ffd700', // Gold
+            letter: '#ffffff', // White envelope
+            seal: '#ff0000',
             bg: '#050505'
-        };
-
-        // Game State
-        let state = {
-            running: false,
-            won: false,
-            score: 0,
-            letters: 0,
-            frameCount: 0,
-            lastTime: 0,
-            slowMo: 0
         };
 
         // Entities
@@ -139,10 +329,21 @@
         let particles = [];
         let stars = [];
 
-        // Input Handling
+        // State
+        let state = {
+            running: false,
+            won: false,
+            score: 0,
+            letters: 0,
+            frameCount: 0,
+            lastTime: 0,
+            slowMo: 0
+        };
+
+        // Input
         let touchActive = false;
         let inputX = 0, inputY = 0;
-        const TOUCH_OFFSET_Y = 75; // Puts character above thumb
+        const TOUCH_OFFSET_Y = 75; 
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -180,6 +381,10 @@
 
         // --- GAME LOGIC ---
 
+        function shuffleQuotes() {
+            gameQuotes = [...ALL_QUOTES].sort(() => 0.5 - Math.random()).slice(0, 15);
+        }
+
         function spawnEnemy() {
             const size = 30;
             enemies.push({
@@ -192,55 +397,67 @@
             });
         }
 
-        function spawnLetter() {
-            const size = 35;
+        function spawnEnvelope() {
+            const size = 40;
             collectibles.push({
                 x: Math.random() * (canvas.width - size),
                 y: -50,
-                w: size, h: size,
-                speed: 2, // Slower fall
-                char: ["L", "O", "V", "E", "♥"][Math.floor(Math.random()*5)]
+                w: size, h: size * 0.7, // Envelope ratio
+                speed: 2,
+                wobbleOffset: Math.random() * 100
             });
         }
 
         function triggerQuote() {
-            // Slow motion effect
-            state.slowMo = 60; // 60 frames of slow mo
+            state.slowMo = 90; // longer slo mo
             
-            // Show Toast
-            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            // Get quote
+            const quote = gameQuotes[state.letters % gameQuotes.length];
             quoteText.innerText = quote;
             quoteToast.style.opacity = '1';
             quoteToast.style.transform = 'translateY(0)';
             
-            // Hide after 3s
             setTimeout(() => {
                 quoteToast.style.opacity = '0';
                 quoteToast.style.transform = 'translateY(10px)';
-            }, 2500);
+            }, 3000);
         }
 
         function winGame() {
             state.won = true;
-            enemies = []; // Clear bad vibes
+            enemies = [];
             collectibles = [];
             
-            // Big Explosion
-            for(let i=0; i<50; i++) {
-                createParticle(canvas.width/2, canvas.height/2, COLORS.player, 10);
-                createParticle(canvas.width/2, canvas.height/2, '#00ffff', 10);
+            // Audio Climax (Filter open)
+            if(audioCtx) {
+                // Just keep the beat running but maybe change pitch? 
+                // Keeping it simple to avoid glitching
             }
 
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+            // Big Explosion
+            for(let i=0; i<80; i++) {
+                createParticle(canvas.width/2, canvas.height/2, COLORS.player, 15);
+                createParticle(canvas.width/2, canvas.height/2, '#00ffff', 15);
+            }
+
+            if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200, 50, 500]);
 
             setTimeout(() => {
                 state.running = false;
                 hud.classList.add('hidden');
                 gameOverScreen.classList.remove('hidden');
-                goTitle.innerText = "MISSION ACCOMPLISHED";
-                goTitle.className = "text-xl text-cyan-400 mb-4 neon-text";
-                goMessage.innerText = "YOU SECURED THE LOVE.";
-            }, 2000);
+                
+                // CUSTOM WIN MESSAGE
+                goTitle.innerText = "HAPPY KISS DAY";
+                goTitle.className = "text-2xl text-pink-500 mb-4 neon-text font-bold";
+                
+                goMessage.innerHTML = `
+                    <span class="text-cyan-400">MISSION SUCCESS.</span><br><br>
+                    I love you so much.<br>
+                    Your kisses still give me real butterflies in this digital world.<br><br>
+                    <span class="text-[8px] text-pink-700 italic">I love making these mini games ONLY and ONLY for you. 😘</span>
+                `;
+            }, 2500);
         }
 
         function createParticle(x, y, color, speedMult = 1) {
@@ -256,53 +473,43 @@
         function update(dt) {
             if (!state.running) return;
 
-            // Handle Slow Mo
             let timeScale = 1;
             if (state.slowMo > 0) {
                 timeScale = 0.2;
                 state.slowMo--;
             }
 
-            // Player Movement (Lerp to finger position + offset)
             if (touchActive && !state.won) {
-                // Target Y includes offset so player is ABOVE finger
                 let targetY = inputY - TOUCH_OFFSET_Y;
-                
                 player.x += (inputX - player.x) * 0.2;
                 player.y += (targetY - player.y) * 0.2;
-
-                // Clamp
                 player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
                 player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
             } else if (state.won) {
-                // Auto fly up on win
-                player.y -= 5;
+                player.y -= 3;
+                player.x += Math.sin(state.frameCount * 0.1) * 5;
             }
 
-            // Fire Bullets
             if (touchActive && state.frameCount % 8 === 0 && !state.won) {
                 bullets.push({ x: player.x, y: player.y - 20, w: 10, h: 10, speed: 12 });
                 if(navigator.vibrate) navigator.vibrate(5);
             }
 
-            // Update Entities
             bullets.forEach((b, i) => {
                 b.y -= b.speed * timeScale;
                 if (b.y < -20) bullets.splice(i, 1);
             });
 
-            // Spawners
             if (!state.won) {
                 if (state.frameCount % Math.floor(40/timeScale) === 0) spawnEnemy();
-                if (state.frameCount % Math.floor(300/timeScale) === 0) spawnLetter();
+                // Spawn envelopes slightly less frequently
+                if (state.frameCount % Math.floor(150/timeScale) === 0) spawnEnvelope();
             }
 
-            // Enemies Logic
             enemies.forEach((e, i) => {
                 e.y += e.speed * timeScale;
                 e.angle += 0.1;
 
-                // Collision Player
                 const dist = Math.hypot(player.x - (e.x + e.w/2), player.y - (e.y + e.h/2));
                 if (dist < 30 && !state.won) {
                     player.hp--;
@@ -312,40 +519,28 @@
                     if(navigator.vibrate) navigator.vibrate(200);
                     if(player.hp <= 0) endGame();
                 }
-
                 if (e.y > canvas.height) enemies.splice(i, 1);
             });
 
-            // Collectibles Logic
             collectibles.forEach((c, i) => {
                 c.y += c.speed * timeScale;
-                // Wobble
-                c.x += Math.sin(c.y * 0.05) * 1; 
+                c.x += Math.sin((c.y + c.wobbleOffset) * 0.05) * 1.5; 
 
-                // Check collision with bullets (Shoot to open)
                 bullets.forEach((b, bIdx) => {
                     if (b.x > c.x && b.x < c.x + c.w && b.y > c.y && b.y < c.y + c.h) {
-                        // Collected!
                         state.letters++;
-                        letterDisplay.innerText = state.letters + "/5";
-                        
-                        // FX
+                        letterDisplay.innerText = state.letters + "/10";
                         createParticle(c.x + c.w/2, c.y + c.h/2, COLORS.letter, 2);
                         if(navigator.vibrate) navigator.vibrate([30, 30, 30]);
-                        
                         triggerQuote();
-                        
                         collectibles.splice(i, 1);
                         bullets.splice(bIdx, 1);
-
-                        if(state.letters >= 5) winGame();
+                        if(state.letters >= 10) winGame();
                     }
                 });
-
                 if (c.y > canvas.height) collectibles.splice(i, 1);
             });
 
-            // Bullets Hit Enemies
             bullets.forEach((b, bIdx) => {
                 enemies.forEach((e, eIdx) => {
                     if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
@@ -356,7 +551,6 @@
                 });
             });
 
-            // Particles
             particles.forEach((p, i) => {
                 p.x += p.vx * timeScale;
                 p.y += p.vy * timeScale;
@@ -364,7 +558,6 @@
                 if (p.life <= 0) particles.splice(i, 1);
             });
 
-            // Stars
             stars.forEach(s => {
                 s.y += s.speed * timeScale;
                 if (s.y > canvas.height) {
@@ -375,7 +568,6 @@
         }
 
         // --- DRAWING ---
-
         function drawHeart(x, y, size, color) {
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -389,70 +581,65 @@
             ctx.fill();
         }
 
+        function drawEnvelope(x, y, w, h) {
+            // White background
+            ctx.fillStyle = '#eee';
+            ctx.fillRect(x, y, w, h);
+            
+            // Flap lines
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w/2, y + h/1.5);
+            ctx.lineTo(x + w, y);
+            ctx.stroke();
+
+            // Heart Seal
+            drawHeart(x + w/2, y + h/1.5 - 5, 10, '#ff0000');
+        }
+
         function draw() {
             ctx.fillStyle = COLORS.bg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Stars
             ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
             stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
 
-            // Player
             if(state.running || state.won) {
-                // Draw line to finger if offset is active
                 if(touchActive && !state.won) {
                     ctx.strokeStyle = 'rgba(255, 20, 147, 0.2)';
                     ctx.setLineDash([5, 5]);
                     ctx.beginPath();
                     ctx.moveTo(player.x, player.y + 20);
-                    ctx.lineTo(inputX, inputY); // To finger
+                    ctx.lineTo(inputX, inputY);
                     ctx.stroke();
                     ctx.setLineDash([]);
                 }
-                
-                // Cupid/Player Heart
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = COLORS.player;
                 drawHeart(player.x, player.y - 15, 30, COLORS.player);
                 ctx.shadowBlur = 0;
             }
 
-            // Mini Kisses (Bullets)
-            bullets.forEach(b => {
-                drawHeart(b.x, b.y, 10, COLORS.bullet);
-            });
+            bullets.forEach(b => drawHeart(b.x, b.y, 10, COLORS.bullet));
 
-            // Enemies (Glitch Skulls)
             enemies.forEach(e => {
                 ctx.fillStyle = COLORS.enemy;
                 ctx.save();
                 ctx.translate(e.x + e.w/2, e.y + e.h/2);
                 ctx.rotate(Math.sin(e.angle)*0.2);
                 ctx.fillRect(-e.w/2, -e.h/2, e.w, e.h);
-                // Eyes
                 ctx.fillStyle = '#000';
                 ctx.fillRect(-e.w/4, -e.h/4, 5, 5);
                 ctx.fillRect(e.w/4 - 5, -e.h/4, 5, 5);
                 ctx.restore();
             });
 
-            // Collectibles (Letters)
             collectibles.forEach(c => {
-                ctx.fillStyle = COLORS.letter;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = COLORS.letter;
-                ctx.font = "20px 'Press Start 2P'";
-                ctx.textAlign = "center";
-                ctx.fillText(c.char, c.x + c.w/2, c.y + c.h/2 + 10);
-                
-                // Box border
-                ctx.strokeStyle = COLORS.letter;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(c.x, c.y, c.w, c.h);
-                ctx.shadowBlur = 0;
+                drawEnvelope(c.x, c.y, c.w, c.h);
             });
 
-            // Particles
             particles.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.globalAlpha = p.life;
@@ -470,10 +657,8 @@
             requestAnimationFrame(loop);
         }
 
-        // --- STATE MANAGEMENT ---
-
+        // --- STATE ---
         function init() {
-            // Stars
             stars = [];
             for(let i=0; i<60; i++) {
                 stars.push({
@@ -486,6 +671,15 @@
         }
 
         function startGame() {
+            initAudio();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // Start beat
+            beatCount = 0;
+            nextNoteTime = audioCtx.currentTime + 0.1;
+            scheduler();
+
+            shuffleQuotes();
             state.running = true;
             state.won = false;
             state.score = 0;
@@ -495,7 +689,7 @@
             enemies = [];
             collectibles = [];
             
-            letterDisplay.innerText = "0/5";
+            letterDisplay.innerText = "0/10";
             updateHP();
             
             startScreen.classList.add('hidden');
@@ -509,15 +703,17 @@
             gameOverScreen.classList.remove('hidden');
             goTitle.innerText = "HEARTBROKEN";
             goTitle.className = "text-xl text-red-500 mb-4 neon-text";
-            goMessage.innerText = "TRY AGAIN?";
+            goMessage.innerText = "THE GLITCH WON. TRY AGAIN.";
             if(navigator.vibrate) navigator.vibrate(300);
+            
+            // Stop audio is tricky without reloading, so we just let it fade or stop scheduling
+            // For arcade feel, music continuing on game over is standard :)
         }
 
         function updateHP() {
             hpDisplay.innerText = "♥".repeat(player.hp);
         }
 
-        // Boot
         init();
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', startGame);
