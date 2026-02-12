@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON ARCHER // SYNTHWAVE STRIKE</title>
+    <title>NEON ARCHER</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
@@ -56,23 +56,45 @@
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 15px rgba(0, 255, 255, 0.15);
         }
 
-        /* Neon Text Styles */
-        .neon-text-cyan { 
+        /* Refined Neon Text - Readable but Glowing */
+        .neon-title { 
             color: #00ffff;
-            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff, 0 0 40px #0088ff;
+            text-shadow: 0 0 8px #00ffff, 0 0 16px #0088ff;
             font-weight: bold;
+            letter-spacing: 2px;
         }
 
-        .neon-text-pink { 
-            color: #ff00ff;
-            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #ff00ff, 0 0 40px #ff0088;
-            font-weight: bold;
-        }
-
-        .neon-text-yellow { 
+        .neon-label { 
             color: #ffff00;
-            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ffff00;
+            text-shadow: 0 0 6px #ffff00;
             font-weight: bold;
+        }
+
+        .neon-value { 
+            color: #ffff00;
+            text-shadow: 0 0 6px #ffff00;
+        }
+
+        .neon-button {
+            color: #00ffff;
+            text-shadow: 0 0 6px #00ffff;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .neon-mission {
+            color: #ff00ff;
+            text-shadow: 0 0 6px #ff00ff;
+        }
+
+        .neon-text {
+            color: #00ffff;
+            text-shadow: 0 0 6px #00ffff;
+        }
+
+        .neon-success {
+            color: #ff00ff;
+            text-shadow: 0 0 8px #ff00ff;
         }
 
         #quoteToast {
@@ -105,59 +127,6 @@
         button:active {
             transform: scale(0.95);
         }
-
-        /* HUD Styles */
-        .hud-text {
-            color: #00ffff;
-            text-shadow: 0 0 8px #00ffff, 0 0 16px #00ffff;
-            font-weight: bold;
-        }
-
-        .hud-value {
-            color: #ffff00;
-            text-shadow: 0 0 8px #ffff00, 0 0 16px #ffff00;
-        }
-
-        /* Quote Toast */
-        .quote-text {
-            color: #ffff00;
-            text-shadow: 0 0 10px #ffff00, 0 0 20px #ffff00;
-            font-weight: bold;
-        }
-
-        /* Mission Briefing */
-        .mission-title {
-            color: #ff00ff;
-            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
-        }
-
-        .mission-text {
-            color: #00ffff;
-            text-shadow: 0 0 8px #00ffff;
-        }
-
-        .mission-label {
-            color: #ffff00;
-            text-shadow: 0 0 8px #ffff00;
-        }
-
-        /* Game Over Screen */
-        .game-over-title {
-            color: #00ffff;
-            text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
-            font-size: 2rem;
-        }
-
-        .game-over-message {
-            color: #00ffff;
-            text-shadow: 0 0 10px #00ffff;
-        }
-
-        .game-over-signoff {
-            color: #ff00ff;
-            text-shadow: 0 0 10px #ff00ff;
-            font-size: 0.7rem;
-        }
     </style>
 </head>
 <body class="h-dvh w-screen flex flex-col items-center justify-center relative">
@@ -166,36 +135,36 @@
     <div class="screen-glow"></div>
     <canvas id="gameCanvas"></canvas>
     
-    <!-- Audio Element with CORS and autoplay support -->
-    <audio id="bgm" loop preload="auto"></audio>
+    <!-- Audio with direct MP3 link -->
+    <audio id="bgm" loop preload="auto" crossorigin="anonymous"></audio>
 
     <!-- HUD -->
     <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none px-4">
-        <div class="hud-text text-[10px]">ENVELOPES: <span id="letterCount" class="hud-value">0/10</span></div>
-        <div class="hud-text text-[10px]">HP: <span id="hpDisplay" class="hud-value">♥♥♥</span></div>
+        <div class="neon-text text-[10px]">ENVELOPES: <span class="neon-value">0/10</span></div>
+        <div class="neon-text text-[10px]">HP: <span class="neon-value">♥♥♥</span></div>
     </div>
 
     <!-- Quote Toast -->
     <div id="quoteToast" class="absolute top-1/4 left-0 right-0 mx-auto text-center pointer-events-none z-50 opacity-0 transform translate-y-4">
-        <p class="glass-toast quote-text text-[10px] leading-relaxed p-4" id="quoteText">
+        <p class="glass-toast neon-label text-[10px] leading-relaxed p-4" id="quoteText">
             "Locating heart signal..."
         </p>
     </div>
 
     <!-- Start Screen -->
     <div id="startScreen" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/98 p-6 text-center">
-        <h1 class="neon-text-cyan mb-8" style="font-size: 2.5rem; letter-spacing: 2px;">NEON ARCHER</h1>
+        <h1 class="neon-title mb-8" style="font-size: 2.5rem;">NEON ARCHER</h1>
         
         <div class="glass-panel p-6 mb-8 max-w-sm text-left w-full">
-            <h3 class="mission-title mb-4 border-b-2 border-cyan-500 pb-3" style="font-size: 0.8rem;">MISSION BRIEFING</h3>
-            <ul class="text-[9px] mission-text space-y-3 leading-relaxed list-disc pl-5">
-                <li><span class="mission-label">GOAL:</span> Crack open <span class="hud-value">10 Love Envelopes</span>.</li>
-                <li><span class="mission-label">INTEL:</span> Envelopes are TOUGH. Shoot them repeatedly!</li>
-                <li><span class="mission-label">CONTROLS:</span> Drag to move. Shooting is <span class="hud-value">AUTOMATIC</span>.</li>
+            <h3 class="neon-mission mb-4 border-b-2 border-cyan-500 pb-3" style="font-size: 0.8rem;">MISSION BRIEFING</h3>
+            <ul class="text-[9px] neon-text space-y-3 leading-relaxed list-disc pl-5">
+                <li><span class="neon-label">GOAL:</span> Crack open <span class="neon-value">10 Love Envelopes</span>.</li>
+                <li><span class="neon-label">INTEL:</span> Envelopes are TOUGH. Shoot them repeatedly!</li>
+                <li><span class="neon-label">CONTROLS:</span> Drag to move. Shooting is <span class="neon-value">AUTOMATIC</span>.</li>
             </ul>
         </div>
 
-        <button id="startBtn" class="glass-panel px-8 py-4 neon-text-cyan text-xs uppercase font-bold tracking-widest" style="letter-spacing: 1px;">
+        <button id="startBtn" class="glass-panel px-8 py-4 neon-button text-xs uppercase font-bold">
             ▶ PLAY
         </button>
     </div>
@@ -203,9 +172,9 @@
     <!-- Game Over Screen -->
     <div id="gameOverScreen" class="hidden absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/98 p-6 text-center overflow-y-auto">
         <div class="my-auto">
-            <h2 id="goTitle" class="game-over-title mb-6"></h2>
-            <div id="goMessage" class="game-over-message text-[10px] mb-8 leading-relaxed max-w-sm mx-auto"></div>
-            <button id="restartBtn" class="glass-panel px-6 py-4 neon-text-cyan text-xs uppercase font-bold">
+            <h2 id="goTitle" class="neon-title mb-6" style="font-size: 1.8rem;"></h2>
+            <div id="goMessage" class="neon-text text-[10px] mb-8 leading-relaxed max-w-sm mx-auto"></div>
+            <button id="restartBtn" class="glass-panel px-6 py-4 neon-button text-xs uppercase font-bold">
                 ↻ RESTART
             </button>
         </div>
@@ -219,8 +188,8 @@
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
         const hud = document.getElementById('hud');
-        const letterDisplay = document.getElementById('letterCount');
-        const hpDisplay = document.getElementById('hpDisplay');
+        const letterDisplay = document.querySelector('#hud .neon-value');
+        const hpDisplay = document.querySelectorAll('#hud .neon-value')[1];
         const quoteToast = document.getElementById('quoteToast');
         const quoteText = document.getElementById('quoteText');
         const goTitle = document.getElementById('goTitle');
@@ -228,22 +197,9 @@
         const startBtn = document.getElementById('startBtn');
         const restartBtn = document.getElementById('restartBtn');
 
-        // --- AUDIO SETUP WITH FALLBACK ---
-        // Primary: Direct MP3 from free-stock-music.com
-        // Fallback: Use a CORS-enabled proxy or alternative source
-        const audioSources = [
-            'https://www.free-stock-music.com/music/fsm-team/mp3/fsm-team-escp-magenta-metropolis.mp3',
-            'https://cdn.pixabay.com/download/audio/2022/03/10/audio_d73998460.mp3' // Pixabay fallback
-        ];
-
+        // --- DIRECT MP3 AUDIO FROM INTERNET ARCHIVE ---
+        bgm.src = 'https://archive.org/download/portal-new-synthwave-music/101.%20Ninjacat%20-%20Our%20Electric%20Summer.mp3';
         bgm.volume = 0.6;
-        bgm.src = audioSources[0];
-
-        // Handle audio errors and try fallback
-        bgm.addEventListener('error', () => {
-            console.log('Primary audio source failed, trying fallback...');
-            bgm.src = audioSources[1];
-        });
 
         // --- ASSETS & DATA ---
         const ALL_QUOTES = [
@@ -465,11 +421,11 @@
                 gameOverScreen.classList.remove('hidden');
                 goTitle.innerText = "MISSION COMPLETE";
                 goMessage.innerHTML = `
-                    <span style="color: #ff00ff; text-shadow: 0 0 10px #ff00ff;">SYSTEM STABILIZED.</span><br><br>
+                    <span class="neon-success">SYSTEM STABILIZED.</span><br><br>
                     I love you so much.<br>
                     Your kisses still give me real butterflies in this digital world.<br><br>
-                    <span class="game-over-signoff">I love making these mini games ONLY and ONLY for you. 😘</span><br><br>
-                    <span style="color: #ff00ff; text-shadow: 0 0 10px #ff00ff;">- with love,<br>Your designheaded man</span>
+                    <span style="font-size: 0.7rem; color: #ff00ff; text-shadow: 0 0 6px #ff00ff;">I love making these mini games ONLY and ONLY for you. 😘</span><br><br>
+                    <span class="neon-success">- with love,<br>Your designheaded man</span>
                 `;
             }, 2500);
         }
@@ -751,14 +707,12 @@
         }
 
         function startGame() {
-            // Attempt to play audio with user interaction
             bgm.currentTime = 0;
             const playPromise = bgm.play();
             
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
-                    console.log('Audio autoplay failed:', error);
-                    // Audio will play on next user interaction
+                    console.log('Audio play initiated');
                 });
             }
             
@@ -789,7 +743,7 @@
             hud.classList.add('hidden');
             gameOverScreen.classList.remove('hidden');
             goTitle.innerText = "SYSTEM CRASH";
-            goMessage.innerHTML = `<span style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">THE GLITCH WON.</span><br><br>REBOOT AND TRY AGAIN.`;
+            goMessage.innerHTML = `<span class="neon-success">THE GLITCH WON.</span><br><br>REBOOT AND TRY AGAIN.`;
             if(navigator.vibrate) navigator.vibrate(300);
         }
 
