@@ -55,6 +55,15 @@
 
         canvas { display: block; width: 100%; height: 100%; }
         .hidden { display: none !important; }
+        
+        #audioStatus {
+            position: absolute;
+            bottom-4 right-4;
+            font-size: 8px;
+            color: #00ffff;
+            z-index: 30;
+            text-shadow: 0 0 5px #00ffff;
+        }
     </style>
 </head>
 <body class="h-dvh w-screen flex flex-col items-center justify-center relative bg-black">
@@ -62,6 +71,9 @@
     <div class="scanlines"></div>
     <div class="screen-glow"></div>
     <canvas id="gameCanvas"></canvas>
+    
+    <audio id="bgm" loop crossorigin="anonymous"></audio>
+    <div id="audioStatus">🎵 SYNTHWAVE</div>
 
     <div id="hud" class="absolute top-4 left-4 right-4 flex justify-between z-30 hidden pointer-events-none">
         <div class="text-cyan-400 text-[10px]">ENVELOPES: <span id="letterCount" class="text-white">0/10</span></div>
@@ -87,7 +99,7 @@
         </div>
 
         <button id="startBtn" class="glass-panel px-8 py-4 text-cyan-400 text-xs uppercase active:scale-95 animate-pulse font-bold tracking-widest">
-            START MISSION (THRILING AUDIO)
+            START MISSION (WITH SYNTHWAVE)
         </button>
     </div>
 
@@ -102,6 +114,7 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const bgm = document.getElementById('bgm');
         
         const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
@@ -113,111 +126,10 @@
         const goTitle = document.getElementById('goTitle');
         const goMessage = document.getElementById('goMessage');
 
-        // --- SYNTHWAVE AUDIO ENGINE ---
-        let audioCtx;
-        let nextNoteTime = 0;
-        let beatCount = 0;
-        const TEMPO = 160; // Faster, more thrilling
-        const SECONDS_PER_BEAT = 60.0 / TEMPO;
-        const SCHEDULE_AHEAD_TIME = 0.1;
-
-        function initAudio() {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-        }
-
-        function playKick(time) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(150, time);
-            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.4);
-            gain.gain.setValueAtTime(1, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
-            osc.start(time);
-            osc.stop(time + 0.4);
-        }
-
-        function playSnare(time) {
-            const bufferSize = audioCtx.sampleRate * 0.5;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'highpass';
-            filter.frequency.value = 1500;
-            const gain = audioCtx.createGain();
-            
-            noise.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-            gain.gain.setValueAtTime(0.4, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
-            noise.start(time);
-        }
-
-        function playBass(time, freq) {
-            const osc = audioCtx.createOscillator();
-            osc.type = 'sawtooth';
-            const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.frequency.setValueAtTime(freq, time);
-            filter.frequency.setValueAtTime(800, time);
-            filter.frequency.exponentialRampToValueAtTime(50, time + 0.15); 
-            
-            gain.gain.setValueAtTime(0.25, time);
-            gain.gain.linearRampToValueAtTime(0, time + 0.15);
-            osc.start(time);
-            osc.stop(time + 0.15);
-        }
-
-        function playArp(time, freq) {
-            const osc = audioCtx.createOscillator();
-            osc.type = 'square';
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(freq, time);
-            gain.gain.setValueAtTime(0.06, time);
-            gain.gain.linearRampToValueAtTime(0, time + 0.08);
-            osc.start(time);
-            osc.stop(time + 0.08);
-        }
-
-        function scheduler() {
-            while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
-                scheduleNote(beatCount, nextNoteTime);
-                nextNoteTime += SECONDS_PER_BEAT / 4; 
-                beatCount++;
-            }
-            if(state.running) setTimeout(scheduler, 25);
-        }
-
-        function scheduleNote(beat, time) {
-            const step = beat % 16;
-            // Heavy 4-on-the-floor kick
-            if (step % 4 === 0) playKick(time);
-            // Snare on 4 and 12
-            if (step === 4 || step === 12) playSnare(time);
-            
-            // Driving 16th note bassline (F Minor vibe)
-            const bassNotes = [43.65, 43.65, 51.91, 43.65, 58.27, 43.65, 65.41, 43.65];
-            playBass(time, bassNotes[step % 8]);
-
-            // High Arpeggio
-            const melody = [698.46, 830.61, 1046.50, 1318.51, 1396.91, 1046.50, 830.61, 698.46];
-            if (step % 2 === 0) playArp(time, melody[Math.floor(beat/2) % 8]);
-        }
+        // --- AUDIO SETUP ---
+        // Using a fast synthwave track from free-stock-music.com
+        bgm.src = 'https://www.free-stock-music.com/music/fsm-team/mp3/fsm-team-escp-magenta-metropolis.mp3';
+        bgm.volume = 0.5;
 
         // --- ASSETS & DATA ---
         const ALL_QUOTES = [
@@ -389,7 +301,7 @@
                 x: Math.random() * (canvas.width - size),
                 y: -50,
                 w: size, h: size,
-                speed: 4 + Math.random() * 3, // Faster enemies
+                speed: 4 + Math.random() * 3,
                 hp: 1,
                 angle: 0
             });
@@ -434,6 +346,7 @@
 
             setTimeout(() => {
                 state.running = false;
+                bgm.pause();
                 hud.classList.add('hidden');
                 gameOverScreen.classList.remove('hidden');
                 goTitle.innerText = "MISSION COMPLETE";
@@ -714,12 +627,9 @@
         }
 
         function startGame() {
-            initAudio();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            beatCount = 0;
-            nextNoteTime = audioCtx.currentTime + 0.1;
-            scheduler();
-
+            bgm.currentTime = 0;
+            bgm.play().catch(e => console.log("Audio play failed:", e));
+            
             shuffleQuotes();
             state.running = true;
             state.won = false;
@@ -743,6 +653,7 @@
 
         function endGame() {
             state.running = false;
+            bgm.pause();
             hud.classList.add('hidden');
             gameOverScreen.classList.remove('hidden');
             goTitle.innerText = "SYSTEM CRASH";
